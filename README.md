@@ -36,11 +36,7 @@ That's it. First time it installs everything (Python required — it'll tell you
 
 That's it. First time it installs Homebrew, Python, FFmpeg, and all dependencies automatically. It will ask for your Mac password once (you won't see characters as you type — that's normal). Every time after, just double-click the same file.
 
-> **Mac security note:** If macOS blocks the file, open Terminal and run:
-> ```
-> xattr -d com.apple.quarantine ~/Downloads/Auto-clipper-*/Auto-Clipper.command
-> ```
-> Then double-click it again. You only need to do this once.
+> **Mac security note:** If macOS blocks the file, go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the Auto-Clipper message. Then double-click the file again. You only need to do this once.
 
 Your browser opens to **http://localhost:8080** — that's the app.
 
@@ -188,7 +184,10 @@ Make sure the VOD is **public** (not subscriber-only or deleted). Some streamers
 - Windows: Your firewall might be blocking port 8080 — try temporarily disabling it
 
 **Port 8080 already in use**
-Something else is using that port. Close other apps, or edit `app.py` and change `port=8080` to `port=8081` (then use `http://localhost:8081` in your browser).
+Something else is using that port. Close other apps (including any other Terminal windows running Auto-Clipper), or edit `app.py` and change `port=8080` to `port=8081` (then use `http://localhost:8081` in your browser).
+
+**App looks broken or shows weird UI on first launch**
+Make sure you don't have another Terminal window already running Auto-Clipper. Close all other Terminal windows and try again.
 
 **Analysis found clips but they're all boring / nothing happening**
 Try using AI mode — computer vision sometimes picks up false positives. AI mode is much better at understanding what's actually exciting.
