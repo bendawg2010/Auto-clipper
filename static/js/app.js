@@ -1260,8 +1260,14 @@ function setPreset(name) {
     tiktokCurrentPreset = name;
 
     // Update active button
-    document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
-    if (event && event.target) event.target.classList.add("active");
+    document.querySelectorAll(".preset-btn").forEach(b => {
+        b.classList.remove("active");
+        if (b.textContent.toLowerCase().includes(name.replace("cam-", "").replace("-", " ")) ||
+            (name === "no-cam" && b.textContent.includes("No Webcam")) ||
+            (name === "custom" && b.textContent === "Custom")) {
+            b.classList.add("active");
+        }
+    });
 
     if (name === "cam-top-right") {
         tiktokRegions.gameplay = { x: 0, y: 0, w: 1, h: 1 };
@@ -1269,6 +1275,9 @@ function setPreset(name) {
     } else if (name === "cam-top-left") {
         tiktokRegions.gameplay = { x: 0, y: 0, w: 1, h: 1 };
         tiktokRegions.webcam = { x: 0.02, y: 0.02, w: 0.26, h: 0.30 };
+    } else if (name === "cam-bottom-right") {
+        tiktokRegions.gameplay = { x: 0, y: 0, w: 1, h: 1 };
+        tiktokRegions.webcam = { x: 0.72, y: 0.68, w: 0.26, h: 0.30 };
     } else if (name === "cam-bottom-left") {
         tiktokRegions.gameplay = { x: 0, y: 0, w: 1, h: 1 };
         tiktokRegions.webcam = { x: 0.02, y: 0.68, w: 0.26, h: 0.30 };
@@ -1405,7 +1414,6 @@ function drawTikTokPreview() {
     }
 
     function onStart(e) {
-        if (tiktokCurrentPreset !== "custom") return;
         e.preventDefault();
         drawing = true;
         const canvas = document.getElementById("tiktok-canvas");
