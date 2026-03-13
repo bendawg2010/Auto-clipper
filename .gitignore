@@ -11,6 +11,7 @@ static/clips/*
 static/thumbnails/*
 !static/thumbnails/.gitkeep
 downloads/
+uploads/
 *.mp4
 *.ts
 *.part

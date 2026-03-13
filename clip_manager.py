@@ -340,6 +340,34 @@ class ClipManager:
 
         return {"filename": filename}
 
+    def trim_upload(self, file_path, job_id, time_start=None, time_end=None):
+        """Trim an uploaded file to a specific time range using ffmpeg."""
+        start_sec = _parse_time_to_seconds(time_start or "0") or 0
+        end_sec = _parse_time_to_seconds(time_end) if time_end else None
+
+        if start_sec == 0 and end_sec is None:
+            return file_path  # No trimming needed
+
+        trimmed_path = os.path.join(self.downloads_dir, f"{job_id}_trimmed.mp4")
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", str(start_sec),
+            "-i", file_path,
+        ]
+        if end_sec is not None:
+            cmd += ["-t", str(end_sec - start_sec)]
+        cmd += [
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
+            trimmed_path,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, timeout=600)
+        if result.returncode == 0 and os.path.exists(trimmed_path):
+            return trimmed_path
+        return file_path  # Fall back to original if trim fails
+
     def cleanup_download(self, video_path):
         """Remove the downloaded VOD file."""
         if video_path and os.path.exists(video_path):
