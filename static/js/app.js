@@ -19,6 +19,7 @@ function saveState() {
         timeEnd: document.getElementById("time-end").value.trim(),
         timeRangeOpen: !document.getElementById("time-range-wrapper").classList.contains("hidden"),
         apiKeyOpen: !document.getElementById("api-key-wrapper").classList.contains("hidden"),
+        source: currentSource,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -60,6 +61,9 @@ function restoreState() {
     if (state.apiKeyOpen) {
         document.getElementById("api-key-wrapper").classList.remove("hidden");
         document.getElementById("api-toggle-icon").textContent = "-";
+    }
+    if (state.source) {
+        setSource(state.source);
     }
 }
 
@@ -104,6 +108,109 @@ function selectGame(gameId) {
     saveState();
 }
 
+// ===== Source Toggle (URL vs Upload) =====
+let currentSource = "url";
+let selectedFile = null;
+
+function setSource(source) {
+    currentSource = source;
+    document.querySelectorAll(".source-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.source === source);
+    });
+    document.getElementById("url-mode").classList.toggle("hidden", source !== "url");
+    document.getElementById("upload-mode").classList.toggle("hidden", source !== "upload");
+    hideError();
+    saveState();
+}
+
+// ===== File Upload =====
+function initUpload() {
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+    dropZone.addEventListener("dragleave", () => { dropZone.classList.remove("drag-over"); });
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) handleFileSelect(fileInput.files[0]);
+    });
+}
+
+function handleFileSelect(file) {
+    const allowedExt = [".mp4", ".mkv", ".mov", ".avi", ".flv", ".ts", ".webm"];
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!allowedExt.includes(ext)) {
+        showError("Unsupported file type. Use: " + allowedExt.join(", "));
+        return;
+    }
+    selectedFile = file;
+    document.getElementById("file-name").textContent = file.name;
+    document.getElementById("file-size").textContent = formatFileSize(file.size);
+    document.getElementById("file-info").classList.remove("hidden");
+    document.getElementById("upload-btn").classList.remove("hidden");
+    document.getElementById("drop-zone").classList.add("hidden");
+    hideError();
+}
+
+function clearFile() {
+    selectedFile = null;
+    document.getElementById("file-input").value = "";
+    document.getElementById("file-info").classList.add("hidden");
+    document.getElementById("upload-btn").classList.add("hidden");
+    document.getElementById("drop-zone").classList.remove("hidden");
+}
+
+function startUploadAnalysis() {
+    if (!selectedFile) { showError("Please select a file first"); return; }
+    hideError();
+    setUploading(true);
+    showProgress();
+    saveState();
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("api_key", document.getElementById("api-key").value.trim());
+    formData.append("time_start", document.getElementById("time-start").value.trim());
+    formData.append("time_end", document.getElementById("time-end").value.trim());
+    formData.append("game", selectedGame);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 40);
+            updateProgress("uploading", pct, `Uploading... ${Math.round(e.loaded / e.total * 100)}%`);
+        }
+    });
+    xhr.addEventListener("load", () => {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.error) { showError(data.error); resetUI(); return; }
+            currentJobId = data.job_id;
+            startPolling();
+        } else {
+            try { showError(JSON.parse(xhr.responseText).error || "Upload failed"); }
+            catch { showError("Upload failed. File may be too large."); }
+            resetUI();
+        }
+    });
+    xhr.addEventListener("error", () => { showError("Upload failed."); resetUI(); });
+    xhr.send(formData);
+}
+
+function setUploading(uploading) {
+    const btn = document.getElementById("upload-btn");
+    btn.disabled = uploading;
+    btn.innerHTML = uploading
+        ? '<span class="spinner"></span> Uploading'
+        : '<span class="btn-text">Upload &amp; Analyze</span><span class="btn-icon">&#9654;</span>';
+}
+
 // ===== App State =====
 let currentJobId = null;
 let currentClips = [];
@@ -118,6 +225,7 @@ window.addEventListener("DOMContentLoaded", () => {
     loadGames();
     hookAutoSave();
     loadLibrary();
+    initUpload();
 });
 
 // ===== VOD Library =====
@@ -212,12 +320,12 @@ function startAnalysis() {
     const apiKey = document.getElementById("api-key").value.trim();
 
     if (!url) {
-        showError("Please paste a Twitch VOD link");
+        showError("Please paste a Twitch or YouTube VOD link");
         return;
     }
 
-    if (!url.includes("twitch.tv")) {
-        showError("That doesn't look like a Twitch URL");
+    if (!url.includes("twitch.tv") && !url.includes("youtube.com") && !url.includes("youtu.be")) {
+        showError("That doesn't look like a Twitch or YouTube URL");
         return;
     }
 
@@ -310,6 +418,7 @@ function updateProgress(status, progress, message) {
 
     const titles = {
         queued: "Queued...",
+        uploading: "Uploading VOD",
         downloading: "Downloading VOD",
         analyzing: "Analyzing Gameplay",
         clipping: "Extracting Clips",
@@ -582,6 +691,7 @@ function hideError() {
 
 function resetUI() {
     setAnalyzing(false);
+    setUploading(false);
     stopPolling();
     document.getElementById("progress-section").classList.add("hidden");
 }

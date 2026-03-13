@@ -12,6 +12,7 @@ static/thumbnails/*
 !static/thumbnails/.gitkeep
 downloads/
 library/
+uploads/
 *.mp4
 *.ts
 *.part

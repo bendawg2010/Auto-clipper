@@ -12,18 +12,20 @@ from clip_manager import ClipManager
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.urandom(24).hex()
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 * 1024  # 10 GB for VOD uploads
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIPS_DIR = os.path.join(BASE_DIR, "static", "clips")
 THUMBNAILS_DIR = os.path.join(BASE_DIR, "static", "thumbnails")
 DOWNLOADS_DIR = os.path.join(BASE_DIR, "downloads")
 LIBRARY_DIR = os.path.join(BASE_DIR, "library")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 
 os.makedirs(CLIPS_DIR, exist_ok=True)
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 os.makedirs(LIBRARY_DIR, exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 jobs = {}
 clip_manager = ClipManager(CLIPS_DIR, THUMBNAILS_DIR, DOWNLOADS_DIR)
@@ -79,8 +81,8 @@ def start_analysis():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    if not _is_valid_twitch_url(url):
-        return jsonify({"error": "Please provide a valid Twitch VOD URL (e.g. twitch.tv/videos/...)"}), 400
+    if not _is_valid_stream_url(url):
+        return jsonify({"error": "Please provide a valid Twitch or YouTube VOD URL"}), 400
 
     job_id = str(uuid.uuid4())[:8]
     jobs[job_id] = {
@@ -128,6 +130,54 @@ def delete_library_vod(filename):
         os.remove(fpath)
         return jsonify({"success": True})
     return jsonify({"error": "File not found"}), 404
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_vod():
+    """Accept a VOD file upload and start analysis."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    allowed_ext = {".mp4", ".mkv", ".mov", ".avi", ".flv", ".ts", ".webm"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_ext:
+        return jsonify({"error": f"Unsupported file type. Use: {', '.join(allowed_ext)}"}), 400
+
+    api_key = request.form.get("api_key", "").strip()
+    time_start = request.form.get("time_start", "").strip()
+    time_end = request.form.get("time_end", "").strip()
+    game_id = request.form.get("game", "arc_raiders").strip()
+
+    job_id = str(uuid.uuid4())[:8]
+
+    # Save to library directly with original filename
+    safe_name = re.sub(r'[^\w\-. ]', '_', file.filename)
+    lib_path = os.path.join(LIBRARY_DIR, safe_name)
+    file.save(lib_path)
+
+    jobs[job_id] = {
+        "status": "analyzing",
+        "progress": 42,
+        "message": "File saved! Analyzing...",
+        "clips": [],
+        "error": None,
+        "url": f"upload:{safe_name}",
+        "vod_path": lib_path,
+        "vod_duration": 0,
+    }
+
+    thread = threading.Thread(
+        target=_run_analysis_on_file,
+        args=(job_id, lib_path, api_key, time_start, time_end, game_id),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"job_id": job_id})
 
 
 @app.route("/api/jobs/<job_id>")
@@ -260,17 +310,30 @@ def delete_clip(job_id, clip_id):
     return jsonify({"error": "Clip not found"}), 404
 
 
-def _is_valid_twitch_url(url):
-    valid_patterns = ["twitch.tv/videos/", "twitch.tv/"]
-    return any(pattern in url.lower() for pattern in valid_patterns)
+def _is_valid_stream_url(url):
+    """Check if the URL is a valid Twitch or YouTube VOD link."""
+    url_lower = url.lower()
+    patterns = ["twitch.tv/videos/", "twitch.tv/", "youtube.com/watch", "youtu.be/", "youtube.com/live/"]
+    return any(p in url_lower for p in patterns)
+
+
+def _get_platform_name(url):
+    """Return 'Twitch' or 'YouTube' based on the URL."""
+    url_lower = url.lower()
+    if "youtube.com" in url_lower or "youtu.be" in url_lower:
+        return "YouTube"
+    return "Twitch"
 
 
 def _save_to_library(url, video_path):
     """Move a downloaded VOD to the library with a readable name."""
     # Extract VOD ID from URL for the filename
     vod_id = re.search(r'videos/(\d+)', url)
+    yt_id = re.search(r'(?:v=|youtu\.be/)([\w-]+)', url)
     if vod_id:
         name = f"twitch_{vod_id.group(1)}.mp4"
+    elif yt_id:
+        name = f"youtube_{yt_id.group(1)}.mp4"
     else:
         name = f"vod_{os.path.basename(video_path)}"
 
@@ -289,6 +352,7 @@ def _save_to_library(url, video_path):
 
 def _run_analysis(job_id, url, api_key="", time_start="", time_end="", game_id="arc_raiders"):
     job = jobs[job_id]
+    platform = _get_platform_name(url)
 
     def update(status, progress, message=""):
         job["status"] = status
@@ -299,7 +363,7 @@ def _run_analysis(job_id, url, api_key="", time_start="", time_end="", game_id="
         range_msg = ""
         if time_start or time_end:
             range_msg = f" ({time_start or '0:00'} to {time_end or 'end'})"
-        update("downloading", 5, f"Downloading Twitch VOD{range_msg}...")
+        update("downloading", 5, f"Downloading {platform} VOD{range_msg}...")
 
         video_path = clip_manager.download_vod(
             url, job_id,

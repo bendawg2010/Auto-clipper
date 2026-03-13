@@ -10,7 +10,7 @@
     <div class="app">
         <header>
             <h1>Auto-Clipper</h1>
-            <p class="subtitle">Paste your Twitch VOD link and let AI find the best moments</p>
+            <p class="subtitle">Upload your VOD or paste a link — AI finds the best moments</p>
         </header>
 
         <!-- Game Selection -->
@@ -23,14 +23,42 @@
             </div>
         </section>
 
-        <!-- URL Input Section -->
+        <!-- Input Section -->
         <section id="input-section" class="card">
-            <div class="input-group">
+            <!-- Source Toggle: URL or Upload -->
+            <div class="source-toggle">
+                <button class="source-btn active" data-source="url" onclick="setSource('url')">Paste URL</button>
+                <button class="source-btn" data-source="upload" onclick="setSource('upload')">Upload File</button>
+            </div>
+
+            <!-- URL Mode -->
+            <div id="url-mode" class="input-group">
                 <input type="text" id="vod-url"
-                    placeholder="Paste Twitch VOD link (e.g. https://www.twitch.tv/videos/2720880233)"
+                    placeholder="Paste Twitch or YouTube VOD link"
                     autocomplete="off">
                 <button id="analyze-btn" onclick="startAnalysis()">
                     <span class="btn-text">Analyze</span>
+                    <span class="btn-icon">&#9654;</span>
+                </button>
+            </div>
+
+            <!-- Upload Mode -->
+            <div id="upload-mode" class="hidden">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <div class="drop-zone-icon">&#128193;</div>
+                        <p class="drop-zone-text">Drag &amp; drop your VOD here</p>
+                        <p class="drop-zone-hint">or click to browse &mdash; MP4, MKV, MOV, AVI, FLV, TS, WebM</p>
+                    </div>
+                    <input type="file" id="file-input" accept=".mp4,.mkv,.mov,.avi,.flv,.ts,.webm" hidden>
+                </div>
+                <div id="file-info" class="file-info hidden">
+                    <span id="file-name" class="file-name"></span>
+                    <span id="file-size" class="file-size"></span>
+                    <button class="file-remove" onclick="clearFile()">&times;</button>
+                </div>
+                <button id="upload-btn" class="upload-btn hidden" onclick="startUploadAnalysis()">
+                    <span class="btn-text">Upload &amp; Analyze</span>
                     <span class="btn-icon">&#9654;</span>
                 </button>
             </div>

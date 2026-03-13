@@ -203,6 +203,81 @@ header h1 {
     opacity: 0.7;
 }
 
+/* Source Toggle */
+.source-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 4px;
+    border: 1px solid var(--border);
+}
+
+.source-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.source-btn:hover { color: var(--text); }
+.source-btn.active { background: var(--accent); color: white; }
+
+/* Drop Zone */
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(145, 71, 255, 0.05);
+}
+
+.drop-zone-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.drop-zone-text { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.drop-zone-hint { font-size: 0.8rem; color: var(--text-dim); }
+
+/* File Info */
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+}
+
+.file-name { flex: 1; font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { color: var(--text-dim); font-size: 0.85rem; white-space: nowrap; }
+.file-remove { background: none; border: none; color: var(--text-dim); font-size: 1.3rem; cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.2s; }
+.file-remove:hover { color: var(--danger); }
+
+/* Upload Button */
+.upload-btn {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; width: 100%; padding: 14px 28px;
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius); font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s, transform 0.1s;
+}
+.upload-btn:hover { background: var(--accent-hover); }
+.upload-btn:active { transform: scale(0.97); }
+.upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Input Section */
 .input-group {
     display: flex;

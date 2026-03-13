@@ -1,6 +1,6 @@
-# Auto-Clipper
+# Auto-Clipper (Beta)
 
-Automatically find the best moments in your Twitch VODs — kills, combat, explosions, and more. Paste a link, get highlight clips.
+Automatically find the best moments in your Twitch or YouTube VODs — kills, combat, explosions, and more. Paste a link or upload a file, get highlight clips.
 
 **Supports:** Arc Raiders, War Thunder (more coming)
 
@@ -9,53 +9,36 @@ Automatically find the best moments in your Twitch VODs — kills, combat, explo
 ## What It Does
 
 1. **Pick** your game from the menu
-2. **Paste** a Twitch VOD link
-3. **Wait** while it downloads and analyzes the video
+2. **Paste** a Twitch/YouTube VOD link — or **upload** a video file from your computer
+3. **Wait** while it analyzes the video
 4. **Review** detected highlights with preview thumbnails
 5. **Download** the clips you want — or convert them to TikTok vertical format
 
-Your settings (game, API key, everything) are saved automatically — even if you close the tab.
+Downloaded VODs are saved to a **library** so you can re-analyze them without re-downloading.
 
 ---
 
-## Windows
+## Install & Run
 
-1. Install Python from [python.org/downloads](https://www.python.org/downloads/) — **check "Add python.exe to PATH"** at the bottom of the installer
-2. Download this project: click the green **"<> Code"** button on this page → **"Download ZIP"**
-3. Unzip it, open the folder, and double-click **`install.bat`**
-4. When it says "Installation Complete", double-click **`run.bat`**
+### Windows
 
-Your browser opens to **http://localhost:8080** — that's the app. Next time, just double-click **`run.bat`** again.
+1. Download this project: green **"<> Code"** button → **"Download ZIP"**
+2. Unzip it, open the folder
+3. Double-click **`Auto-Clipper.bat`**
 
----
+That's it. First time it installs everything (Python required — it'll tell you if you need it). Every time after, just double-click the same file.
 
-## Mac
+### Mac
 
-1. Download this project: click the green **"<> Code"** button on this page → **"Download ZIP"**
-2. Double-click the ZIP in your Downloads folder to unzip it
-3. Open **Terminal** (Command + Space, type Terminal, press Enter)
-4. Run these commands:
+1. Download this project: green **"<> Code"** button → **"Download ZIP"**
+2. Double-click the ZIP to unzip it
+3. Open the folder and double-click **`Auto-Clipper.command`**
 
-```bash
-cd ~/Downloads/Auto-clipper-*/
-chmod +x install.sh run.sh
-./install.sh
-```
+That's it. First time it installs Homebrew, Python, FFmpeg, and all dependencies automatically. It will ask for your Mac password once (you won't see characters as you type — that's normal). Every time after, just double-click the same file.
 
-The installer handles everything — Homebrew, Python, Git, FFmpeg, dependencies. It will ask for your Mac password (you won't see characters as you type — that's normal). If it installs Homebrew for the first time, **copy and paste the "Next steps" commands it shows you**, then run `./install.sh` again.
-
-When it says "Installation Complete":
-
-```bash
-./run.sh
-```
+> **Mac security note:** If macOS says the file "can't be opened", right-click it → Open → click Open. You only need to do this once.
 
 Your browser opens to **http://localhost:8080** — that's the app.
-
-**Next time**, just open Terminal and run:
-```bash
-cd ~/Downloads/Auto-clipper-*/ && ./run.sh
-```
 
 ---
 
