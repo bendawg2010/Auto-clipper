@@ -16,10 +16,10 @@
         <!-- Game Selection -->
         <section id="game-section" class="card">
             <div class="game-selector">
-                <label class="game-label">Game</label>
-                <div id="game-options" class="game-options">
+                <label class="game-label" for="game-select">Game</label>
+                <select id="game-select" class="game-dropdown" onchange="selectGame(this.value)">
                     <!-- Populated by JS -->
-                </div>
+                </select>
             </div>
         </section>
 

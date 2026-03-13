@@ -89,22 +89,18 @@ function loadGames() {
 }
 
 function renderGameOptions() {
-    const container = document.getElementById("game-options");
-    container.innerHTML = availableGames.map(game => `
-        <button class="game-btn ${game.id === selectedGame ? 'active' : ''}"
-                onclick="selectGame('${game.id}')"
-                data-game="${game.id}">
-            <span class="game-btn-name">${escapeHtml(game.name)}</span>
-            <span class="game-btn-desc">${escapeHtml(game.description)}</span>
-        </button>
+    const select = document.getElementById("game-select");
+    select.innerHTML = availableGames.map(game => `
+        <option value="${game.id}" ${game.id === selectedGame ? 'selected' : ''}>
+            ${escapeHtml(game.name)} — ${escapeHtml(game.description)}
+        </option>
     `).join("");
 }
 
 function selectGame(gameId) {
     selectedGame = gameId;
-    document.querySelectorAll(".game-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.game === gameId);
-    });
+    const select = document.getElementById("game-select");
+    if (select.value !== gameId) select.value = gameId;
     saveState();
 }
 

@@ -158,49 +158,35 @@ header h1 {
     white-space: nowrap;
 }
 
-.game-options {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+.game-dropdown {
     flex: 1;
-}
-
-.game-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    padding: 10px 16px;
+    padding: 10px 14px;
     background: var(--bg);
     border: 2px solid var(--border);
     border-radius: var(--radius);
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.2s;
-    flex: 1;
-    min-width: 140px;
-}
-
-.game-btn:hover {
-    border-color: var(--accent);
     color: var(--text);
-}
-
-.game-btn.active {
-    background: rgba(145, 71, 255, 0.12);
-    border-color: var(--accent);
-    color: var(--text);
-    box-shadow: 0 0 0 1px var(--accent);
-}
-
-.game-btn-name {
-    font-weight: 700;
     font-size: 0.95rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b8b8b' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
 }
 
-.game-btn-desc {
-    font-size: 0.75rem;
-    opacity: 0.7;
+.game-dropdown:hover,
+.game-dropdown:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.game-dropdown option {
+    background: var(--card);
+    color: var(--text);
+    padding: 8px;
 }
 
 /* Source Toggle */
@@ -913,19 +899,6 @@ header h1 {
         flex-direction: column;
         align-items: stretch;
         gap: 8px;
-    }
-
-    .game-options {
-        gap: 6px;
-    }
-
-    .game-btn {
-        min-width: 0;
-        padding: 8px 12px;
-    }
-
-    .game-btn-name {
-        font-size: 0.85rem;
     }
 
     .input-group {
