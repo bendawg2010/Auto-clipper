@@ -45,15 +45,13 @@ GAME_PROFILES = {
                 "bar_region": [0.88, 0.95, 0.02, 0.22],  # y1, y2, x1, x2
                 # Colors that represent a FULL/healthy bar
                 "bar_colors": [
-                    # Green health bar
-                    {"lower": np.array([35, 60, 100]), "upper": np.array([85, 255, 255])},
+                    # White health bar
+                    {"lower": np.array([0, 0, 180]), "upper": np.array([180, 40, 255])},
                     # Blue shield bar
                     {"lower": np.array([90, 60, 100]), "upper": np.array([130, 255, 255])},
-                    # White health bar variant
-                    {"lower": np.array([0, 0, 180]), "upper": np.array([180, 40, 255])},
                 ],
-                # When bar pixel coverage drops, it means damage taken
-                "depletion_threshold": 0.3,  # trigger when bars lose 30%+ of their fill
+                # Trigger when bars lose 10%+ of their fill (shield break = clip-worthy)
+                "depletion_threshold": 0.1,
                 "multiplier": 6,
             },
             "hit_marker": {
