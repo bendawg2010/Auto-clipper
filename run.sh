@@ -16,8 +16,19 @@ fi
 # Activate and run
 source venv/bin/activate
 
-# Open browser quickly — the web UI shows a loading screen
-# that waits for the backend to fully respond before showing content
-(sleep 1 && open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null) &
+# Start server in background
+python app.py &
+SERVER_PID=$!
 
-python app.py
+# Wait for server to actually bind the port before opening browser
+echo "  Waiting for server..."
+for i in $(seq 1 30); do
+    if (echo > /dev/tcp/localhost/8080) 2>/dev/null || curl -s http://localhost:8080/ > /dev/null 2>&1; then
+        echo "  Server ready!"
+        open http://localhost:8080 2>/dev/null || xdg-open http://localhost:8080 2>/dev/null
+        break
+    fi
+    sleep 1
+done
+
+wait $SERVER_PID

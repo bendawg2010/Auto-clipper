@@ -104,7 +104,19 @@ echo ""
 echo "  Next time just double-click Auto-Clipper.command again."
 echo ""
 
-# Open browser
-(sleep 2 && open http://localhost:8080 2>/dev/null) &
+# Start server in background
+python app.py &
+SERVER_PID=$!
 
-python app.py
+# Wait for server to bind the port before opening browser
+echo "  Waiting for server..."
+for i in $(seq 1 60); do
+    if (echo > /dev/tcp/localhost/8080) 2>/dev/null || curl -s http://localhost:8080/ > /dev/null 2>&1; then
+        echo "  Server ready!"
+        open http://localhost:8080
+        break
+    fi
+    sleep 1
+done
+
+wait $SERVER_PID

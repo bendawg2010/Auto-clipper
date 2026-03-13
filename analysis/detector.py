@@ -208,9 +208,10 @@ class GameDetector:
 
         if not peaks:
             sorted_windows = sorted(window_scores, key=lambda w: w["avg_score"], reverse=True)
-            fallback_ratio = self.profile.get("fallback_threshold_ratio", 0.5)
+            fallback_ratio = self.profile.get("fallback_threshold_ratio", 0.3)
             fallback_threshold = self.intensity_threshold * fallback_ratio
-            peaks = [w for w in sorted_windows[:10] if w["avg_score"] >= fallback_threshold]
+            # Only take top 5 fallback clips (not 10) to avoid low-quality clips
+            peaks = [w for w in sorted_windows[:5] if w["avg_score"] >= fallback_threshold]
 
         if not peaks:
             return []
