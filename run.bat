@@ -15,19 +15,8 @@ if not exist "venv\Scripts\activate.bat" (
 :: Activate and run
 call venv\Scripts\activate.bat
 
-:: Start server in background
-start /B python app.py
-
-:: Wait for server to be ready
-echo  Waiting for server...
-:wait_loop
-timeout /t 1 /nobreak >nul
-curl -s http://localhost:8080/api/games >nul 2>&1
-if errorlevel 1 goto wait_loop
-echo  Server ready!
+:: Open browser quickly - the web UI shows a loading screen
+:: that waits for the backend to fully respond before showing content
 start http://localhost:8080
 
-:: Keep window open while server runs
-:keep_alive
-timeout /t 5 /nobreak >nul
-goto keep_alive
+python app.py

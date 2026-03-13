@@ -5,21 +5,6 @@ Opens the app in a native window instead of a browser tab.
 import sys
 import threading
 import time
-import urllib.request
-import urllib.error
-
-
-def _wait_for_server(host, port, timeout=60):
-    """Poll the server until it responds or timeout is reached."""
-    url = f"http://{host}:{port}/api/games"
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(url, timeout=2)
-            return  # Server is ready
-        except (urllib.error.URLError, ConnectionError, OSError):
-            time.sleep(0.5)
-    print("Warning: server did not respond within timeout, opening anyway...")
 
 
 def main():
@@ -32,8 +17,9 @@ def main():
     )
     server_thread.start()
 
-    # Wait for server to actually be ready (up to 60 seconds)
-    _wait_for_server("127.0.0.1", 8080, timeout=60)
+    # Brief pause for socket to bind — the web UI has its own loading
+    # screen that waits for the backend to fully respond before showing
+    time.sleep(1)
 
     try:
         import webview

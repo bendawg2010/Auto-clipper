@@ -222,13 +222,36 @@ let vodDuration = 0;
 
 // ===== Init =====
 window.addEventListener("DOMContentLoaded", () => {
-    restoreState();
-    loadGames();
-    hookAutoSave();
-    loadLibrary();
-    loadSessions();
-    initUpload();
+    waitForBackend();
 });
+
+function waitForBackend() {
+    fetch("/api/games")
+        .then(res => {
+            if (!res.ok) throw new Error("not ready");
+            return res.json();
+        })
+        .then(() => {
+            // Backend is ready — show the app
+            const overlay = document.getElementById("loading-overlay");
+            const app = document.getElementById("app-container");
+            overlay.classList.add("fade-out");
+            app.classList.remove("hidden");
+            setTimeout(() => overlay.remove(), 500);
+
+            // Now initialize everything
+            restoreState();
+            loadGames();
+            hookAutoSave();
+            loadLibrary();
+            loadSessions();
+            initUpload();
+        })
+        .catch(() => {
+            // Not ready yet, retry in 1 second
+            setTimeout(waitForBackend, 1000);
+        });
+}
 
 // ===== VOD Library =====
 function loadLibrary() {

@@ -7,7 +7,16 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="app">
+    <!-- Loading overlay - shown until backend is ready -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>Auto-Clipper</h2>
+            <p>Starting up...</p>
+        </div>
+    </div>
+
+    <div class="app hidden" id="app-container">
         <header>
             <h1>Auto-Clipper</h1>
             <p class="subtitle">Upload your VOD or paste a link — AI finds the best moments</p>
