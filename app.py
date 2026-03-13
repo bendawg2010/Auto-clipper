@@ -167,7 +167,7 @@ def trim_clip(job_id, clip_id):
 
     vod_path = job.get("vod_path")
     if not vod_path or not os.path.exists(vod_path):
-        return jsonify({"error": "VOD no longer available. Re-analyze to trim clips."}), 400
+        return jsonify({"error": "VOD was auto-deleted to save storage. Re-analyze to trim clips."}), 400
 
     data = request.get_json()
     new_start = data.get("start")
@@ -303,6 +303,11 @@ def _run_analysis(job_id, url, api_key="", time_start="", time_end="", game_id="
     except Exception as e:
         job["error"] = str(e)
         update("error", 0, str(e))
+        # Clean up downloaded VOD on error too
+        vod = job.get("vod_path")
+        if vod:
+            clip_manager.cleanup_download(vod)
+            job["vod_path"] = None
 
 
 def _run_analysis_on_file(job_id, file_path, api_key="", time_start="", time_end="", game_id="arc_raiders"):
@@ -327,6 +332,9 @@ def _run_analysis_on_file(job_id, file_path, api_key="", time_start="", time_end
     except Exception as e:
         job["error"] = str(e)
         update("error", 0, str(e))
+        # Clean up uploaded file on error
+        clip_manager.cleanup_download(file_path)
+        job["vod_path"] = None
 
 
 def _analyze_video_file(job_id, job, video_path, api_key, game_id, update):
@@ -374,6 +382,10 @@ def _analyze_video_file(job_id, job, video_path, api_key, game_id, update):
 
     job["clips"] = clips
     update("complete", 100, f"Done! Found {len(clips)} highlight clips")
+
+    # Auto-cleanup: delete the full VOD to free storage
+    clip_manager.cleanup_download(video_path)
+    job["vod_path"] = None
 
 
 if __name__ == "__main__":
