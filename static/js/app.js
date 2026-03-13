@@ -20,6 +20,7 @@ function saveState() {
         timeRangeOpen: !document.getElementById("time-range-wrapper").classList.contains("hidden"),
         apiKeyOpen: !document.getElementById("api-key-wrapper").classList.contains("hidden"),
         source: currentSource,
+        currentJobId: currentJobId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -64,6 +65,10 @@ function restoreState() {
     }
     if (state.source) {
         setSource(state.source);
+    }
+    if (state.currentJobId) {
+        currentJobId = state.currentJobId;
+        fetchClips(currentJobId);
     }
 }
 
@@ -221,6 +226,7 @@ window.addEventListener("DOMContentLoaded", () => {
     loadGames();
     hookAutoSave();
     loadLibrary();
+    loadSessions();
     initUpload();
 });
 
@@ -301,6 +307,56 @@ function deleteLibraryVod(filename) {
         .then(res => res.json())
         .then(data => {
             if (data.success) loadLibrary();
+        });
+}
+
+// ===== Saved Sessions =====
+function loadSessions() {
+    fetch("/api/sessions")
+        .then(res => res.json())
+        .then(data => {
+            const sessions = data.sessions || [];
+            const section = document.getElementById("sessions-section");
+            const list = document.getElementById("sessions-list");
+            const count = document.getElementById("sessions-count");
+
+            if (sessions.length === 0) {
+                section.classList.add("hidden");
+                return;
+            }
+
+            section.classList.remove("hidden");
+            count.textContent = sessions.length;
+
+            list.innerHTML = sessions.map(s => `
+                <div class="library-item">
+                    <div class="library-item-info" onclick="loadSession('${escapeHtml(s.job_id)}')">
+                        <span class="library-item-name">${s.clip_count} clip${s.clip_count !== 1 ? 's' : ''}</span>
+                        <span class="library-item-meta">
+                            ${escapeHtml(s.url || 'Unknown source')}
+                            ${s.created_at ? ' &middot; ' + new Date(s.created_at).toLocaleDateString() : ''}
+                            ${s.vod_available ? '' : ' &middot; <em>VOD removed</em>'}
+                        </span>
+                    </div>
+                    <button class="library-item-delete" onclick="deleteSession('${escapeHtml(s.job_id)}')" title="Delete">&times;</button>
+                </div>
+            `).join("");
+        })
+        .catch(() => {});
+}
+
+function loadSession(jobId) {
+    currentJobId = jobId;
+    saveState();
+    fetchClips(jobId);
+}
+
+function deleteSession(jobId) {
+    if (!confirm("Delete this saved session?")) return;
+    fetch(`/api/sessions/${encodeURIComponent(jobId)}/delete`, { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) loadSessions();
         });
 }
 
@@ -434,6 +490,7 @@ function fetchClips(jobId) {
             renderClips();
             setAnalyzing(false);
             loadLibrary(); // Refresh — new VOD may have been saved
+            loadSessions(); // Refresh — new session saved
         })
         .catch(() => {
             showError("Failed to load clips");

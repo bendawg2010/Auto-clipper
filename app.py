@@ -1,8 +1,10 @@
 import os
 import re
+import json
 import shutil
 import uuid
 import threading
+from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
 from analysis.detector import GameDetector
@@ -20,15 +22,71 @@ THUMBNAILS_DIR = os.path.join(BASE_DIR, "static", "thumbnails")
 DOWNLOADS_DIR = os.path.join(BASE_DIR, "downloads")
 LIBRARY_DIR = os.path.join(BASE_DIR, "library")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
 
 os.makedirs(CLIPS_DIR, exist_ok=True)
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 os.makedirs(LIBRARY_DIR, exist_ok=True)
 os.makedirs(UPLOADS_DIR, exist_ok=True)
+os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 jobs = {}
 clip_manager = ClipManager(CLIPS_DIR, THUMBNAILS_DIR, DOWNLOADS_DIR)
+
+
+def _save_session(job_id):
+    """Persist a completed job's state to disk."""
+    job = jobs.get(job_id)
+    if not job or job.get("status") != "complete":
+        return
+    session_data = {
+        "job_id": job_id,
+        "status": "complete",
+        "clips": job["clips"],
+        "vod_duration": job.get("vod_duration", 0),
+        "vod_path": job.get("vod_path"),
+        "url": job.get("url", ""),
+        "message": job.get("message", ""),
+        "created_at": job.get("created_at", datetime.now().isoformat()),
+    }
+    path = os.path.join(SESSIONS_DIR, f"{job_id}.json")
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(session_data, f, indent=2)
+    os.replace(tmp_path, path)
+
+
+def _load_sessions():
+    """Load all saved session files into the jobs dict on startup."""
+    for fname in os.listdir(SESSIONS_DIR):
+        if not fname.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(SESSIONS_DIR, fname)) as f:
+                data = json.load(f)
+            job_id = data["job_id"]
+            # Filter out clips whose files no longer exist
+            data["clips"] = [
+                c for c in data.get("clips", [])
+                if os.path.exists(os.path.join(CLIPS_DIR, c.get("filename", "")))
+            ]
+            jobs[job_id] = {
+                "status": data["status"],
+                "progress": 100,
+                "message": data.get("message", "Restored session"),
+                "clips": data["clips"],
+                "error": None,
+                "vod_path": data.get("vod_path"),
+                "vod_duration": data.get("vod_duration", 0),
+                "url": data.get("url", ""),
+                "created_at": data.get("created_at", ""),
+            }
+        except (json.JSONDecodeError, KeyError, OSError):
+            continue
+
+
+_load_sessions()
 
 
 @app.route("/")
@@ -130,6 +188,41 @@ def delete_library_vod(filename):
         os.remove(fpath)
         return jsonify({"success": True})
     return jsonify({"error": "File not found"}), 404
+
+
+@app.route("/api/sessions")
+def list_sessions():
+    """List all saved sessions for the Recent Sessions UI."""
+    sessions = []
+    for fname in sorted(os.listdir(SESSIONS_DIR), reverse=True):
+        if not fname.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(SESSIONS_DIR, fname)) as f:
+                data = json.load(f)
+            vod_available = bool(data.get("vod_path") and os.path.exists(data["vod_path"]))
+            sessions.append({
+                "job_id": data["job_id"],
+                "clip_count": len(data.get("clips", [])),
+                "url": data.get("url", ""),
+                "created_at": data.get("created_at", ""),
+                "vod_available": vod_available,
+            })
+        except (json.JSONDecodeError, KeyError, OSError):
+            continue
+    return jsonify({"sessions": sessions})
+
+
+@app.route("/api/sessions/<job_id>/delete", methods=["POST"])
+def delete_session(job_id):
+    """Delete a saved session."""
+    safe_id = os.path.basename(job_id)
+    path = os.path.join(SESSIONS_DIR, f"{safe_id}.json")
+    if os.path.exists(path):
+        os.remove(path)
+        jobs.pop(job_id, None)
+        return jsonify({"success": True})
+    return jsonify({"error": "Session not found"}), 404
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -258,6 +351,7 @@ def trim_clip(job_id, clip_id):
             clip["duration"] = result["duration"]
             clip["timestamp_display"] = result["timestamp_display"]
 
+            _save_session(job_id)
             return jsonify({"success": True, "clip": clip})
 
     return jsonify({"error": "Clip not found"}), 404
@@ -305,6 +399,7 @@ def delete_clip(job_id, clip_id):
         if clip["id"] == clip_id:
             clip_manager.delete_clip(clip)
             job["clips"].pop(i)
+            _save_session(job_id)
             return jsonify({"success": True})
 
     return jsonify({"error": "Clip not found"}), 404
@@ -429,6 +524,8 @@ def _run_analysis_on_file(job_id, video_path, api_key="", time_start="", time_en
         if not highlights:
             update("complete", 100, "Analysis complete - no highlights found")
             job["clips"] = []
+            job["created_at"] = datetime.now().isoformat()
+            _save_session(job_id)
             return
 
         update("clipping", 82, f"Extracting {len(highlights)} clips...")
@@ -441,7 +538,9 @@ def _run_analysis_on_file(job_id, video_path, api_key="", time_start="", time_en
         )
 
         job["clips"] = clips
+        job["created_at"] = datetime.now().isoformat()
         update("complete", 100, f"Done! Found {len(clips)} highlight clips")
+        _save_session(job_id)
 
     except Exception as e:
         job["error"] = str(e)
