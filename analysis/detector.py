@@ -46,6 +46,7 @@ class GameDetector:
 
         scores = []
         prev_frame_gray = None
+        prev_bar_fill = None
 
         frame_idx = 0
         analyzed = 0
@@ -57,7 +58,9 @@ class GameDetector:
 
             if frame_idx % frame_interval == 0:
                 timestamp = frame_idx / fps
-                score, label = self._score_frame(frame, prev_frame_gray)
+                score, label, prev_bar_fill = self._score_frame(
+                    frame, prev_frame_gray, prev_bar_fill
+                )
 
                 scores.append({"score": score, "label": label, "timestamp": timestamp})
 
@@ -92,10 +95,10 @@ class GameDetector:
             print(f"  [CV]   -> {h['label']} at {int(h['timestamp'])}s ({h['duration']}s, conf:{h['confidence']})")
         return highlights
 
-    def _score_frame(self, frame, prev_gray):
+    def _score_frame(self, frame, prev_gray, prev_bar_fill=None):
         """
         Score a single frame for action intensity using the game profile.
-        Returns (score: float 0-1, label: str).
+        Returns (score: float 0-1, label: str, bar_fill: float or None).
         """
         h, w = frame.shape[:2]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -104,13 +107,44 @@ class GameDetector:
         component_scores = {}
         label_map = {}
         weights = {}
+        bar_fill = prev_bar_fill  # carry forward if no bar detector
 
         # Process each detector from the profile
         for det_id, det in self.profile["detectors"].items():
             label_map[det_id] = det["label"]
             weights[det_id] = det["weight"]
 
-            if det["region"] == "edges":
+            if det["region"] == "health_bar":
+                # Health/shield bar depletion detection
+                # Measure how full the health/shield bars are by counting bar-colored pixels
+                y1, y2, x1, x2 = det["bar_region"]
+                bar_region = hsv[int(h * y1):int(h * y2), int(w * x1):int(w * x2)]
+                bar_size = max(bar_region.shape[0] * bar_region.shape[1], 1)
+
+                # Count pixels matching any bar color (health green, shield blue, etc.)
+                total_bar_pixels = 0
+                for color in det["bar_colors"]:
+                    mask = cv2.inRange(bar_region, color["lower"], color["upper"])
+                    total_bar_pixels += np.count_nonzero(mask)
+
+                current_fill = total_bar_pixels / bar_size
+                bar_fill = current_fill
+
+                # Compare to previous frame — damage = bar fill dropping
+                if prev_bar_fill is not None:
+                    drop = prev_bar_fill - current_fill
+                    threshold = det.get("depletion_threshold", 0.3)
+                    if drop >= threshold:
+                        # Significant bar depletion = taking damage
+                        # Scale score by how much was lost
+                        raw = min(drop / threshold, 1.0)
+                        component_scores[det_id] = min(raw * det["multiplier"], 1.0)
+                    else:
+                        component_scores[det_id] = 0
+                else:
+                    component_scores[det_id] = 0
+
+            elif det["region"] == "edges":
                 # Edge detection (damage indicators) — check all 4 edges
                 edge_size = det.get("edge_size", 0.10)
                 edges = [
@@ -135,7 +169,7 @@ class GameDetector:
                 density = np.count_nonzero(mask) / max(mask.size, 1)
                 component_scores[det_id] = min(density * det["multiplier"], 1.0)
 
-            else:
+            elif isinstance(det["region"], list):
                 # Region-based detection [y1, y2, x1, x2]
                 y1, y2, x1, x2 = det["region"]
                 region = hsv[int(h * y1):int(h * y2), int(w * x1):int(w * x2)]
@@ -144,6 +178,13 @@ class GameDetector:
                 if "lower2" in det:
                     mask2 = cv2.inRange(region, det["lower2"], det["upper2"])
                     density += np.count_nonzero(mask2) / max(mask2.size, 1)
+
+                # Filter out false positives: too few pixels = noise, too many = bright scene
+                min_d = det.get("min_density", 0)
+                max_d = det.get("max_density", 1.0)
+                if density < min_d or density > max_d:
+                    density = 0
+
                 component_scores[det_id] = min(density * det["multiplier"], 1.0)
 
         # Motion detection
@@ -174,7 +215,7 @@ class GameDetector:
         best_component = max(component_scores, key=component_scores.get)
         label = label_map.get(best_component, "Highlight")
 
-        return total_score, label
+        return total_score, label, bar_fill
 
     def _find_highlights(self, scores, total_duration):
         """

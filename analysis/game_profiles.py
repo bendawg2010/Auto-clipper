@@ -22,23 +22,39 @@ GAME_PROFILES = {
             "kill_feed": {
                 "label": "Kill / Elimination",
                 "weight": 0.30,
-                # Kill notifications: bright white/yellow text top-right
-                "lower": np.array([0, 0, 200]),
-                "upper": np.array([180, 50, 255]),
-                "region": [0.05, 0.25, 0.55, 0.95],  # y1, y2, x1, x2 (as ratio)
-                "multiplier": 7,  # density * multiplier, capped at 1.0
+                # Kill notifications: bright white/yellow text in kill feed area
+                # Tighter region and higher saturation floor to avoid matching sky/clouds
+                "lower": np.array([15, 80, 200]),
+                "upper": np.array([40, 255, 255]),
+                # Also check for very bright white text (low sat, very high value)
+                "lower2": np.array([0, 0, 240]),
+                "upper2": np.array([180, 30, 255]),
+                "region": [0.05, 0.18, 0.60, 0.95],  # tighter kill feed area top-right
+                "min_density": 0.005,  # ignore if too few pixels (not real text)
+                "max_density": 0.40,   # ignore if too many pixels (sky/bright scene)
+                "multiplier": 8,
             },
             "damage": {
                 "label": "Taking Damage",
                 "weight": 0.20,
-                # Red vignette at screen edges
-                "lower": np.array([0, 120, 100]),
-                "upper": np.array([10, 255, 255]),
-                "lower2": np.array([170, 120, 100]),
-                "upper2": np.array([180, 255, 255]),
-                "region": "edges",  # special: checks all 4 screen edges
-                "edge_size": 0.12,  # 12% of screen from each edge
-                "multiplier": 5,
+                # Detect health/shield bar depletion in the HUD
+                # Arc Raiders: health bar is green/white, shield bar is blue
+                # Both are in the bottom-left of the screen
+                "region": "health_bar",
+                # Health bar location (bottom-left HUD area)
+                "bar_region": [0.88, 0.95, 0.02, 0.22],  # y1, y2, x1, x2
+                # Colors that represent a FULL/healthy bar
+                "bar_colors": [
+                    # Green health bar
+                    {"lower": np.array([35, 60, 100]), "upper": np.array([85, 255, 255])},
+                    # Blue shield bar
+                    {"lower": np.array([90, 60, 100]), "upper": np.array([130, 255, 255])},
+                    # White health bar variant
+                    {"lower": np.array([0, 0, 180]), "upper": np.array([180, 40, 255])},
+                ],
+                # When bar pixel coverage drops, it means damage taken
+                "depletion_threshold": 0.3,  # trigger when bars lose 30%+ of their fill
+                "multiplier": 6,
             },
             "hit_marker": {
                 "label": "Landing Hits",
