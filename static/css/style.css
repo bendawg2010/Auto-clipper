@@ -739,7 +739,224 @@ header h1 {
     font-size: 0.9rem;
 }
 
-/* Trim Section */
+/* Editor Tabs */
+.editor-tabs {
+    display: flex;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.editor-tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editor-tab:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+}
+
+.editor-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.editor-tab-content {
+    display: none;
+    padding: 16px 20px;
+}
+
+.editor-tab-content.active {
+    display: block;
+}
+
+/* Timeline Scrubber */
+.timeline-scrubber {
+    margin-bottom: 16px;
+}
+
+.timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: monospace;
+}
+
+.timeline-title {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.7rem;
+}
+
+.timeline-track {
+    position: relative;
+    height: 32px;
+    background: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.timeline-range {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(145, 71, 255, 0.3);
+    border-radius: 6px;
+}
+
+.timeline-handle {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 12px;
+    background: var(--accent);
+    border-radius: 3px;
+    cursor: ew-resize;
+    z-index: 2;
+    transition: background 0.15s;
+}
+
+.timeline-handle:hover,
+.timeline-handle.dragging {
+    background: var(--accent-hover);
+    box-shadow: 0 0 8px rgba(145, 71, 255, 0.5);
+}
+
+.timeline-handle::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 1px;
+}
+
+.timeline-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-family: monospace;
+}
+
+/* Crop Tab */
+.crop-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.crop-canvas-wrap {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+#crop-canvas {
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: move;
+    display: block;
+    margin: 0 auto;
+}
+
+.crop-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+}
+
+.crop-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Effects Tab */
+.effects-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.effect-control label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.effect-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.effect-slider-row input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+}
+
+.effect-slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--surface);
+}
+
+.effect-slider-row input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--surface);
+}
+
+.effect-val {
+    font-size: 0.85rem;
+    font-family: monospace;
+    color: var(--accent);
+    min-width: 44px;
+    text-align: right;
+}
+
+.effects-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Trim Section (now inside tab) */
 .trim-section {
     padding: 16px 20px;
     border-top: 1px solid var(--border);
@@ -1003,8 +1220,8 @@ header h1 {
         text-align: center;
     }
 
-    /* Trim controls mobile */
-    .trim-section {
+    /* Editor tabs mobile */
+    .editor-tab-content {
         padding: 12px 14px;
     }
 
@@ -1018,7 +1235,9 @@ header h1 {
         justify-content: center;
     }
 
-    .trim-footer {
+    .trim-footer,
+    .crop-footer,
+    .effects-footer {
         flex-direction: column;
         gap: 8px;
         align-items: stretch;
@@ -1026,6 +1245,10 @@ header h1 {
 
     .btn-apply-trim {
         text-align: center;
+    }
+
+    .effects-grid {
+        grid-template-columns: 1fr;
     }
 
     /* Clip card actions */

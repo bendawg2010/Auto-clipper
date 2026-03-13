@@ -389,6 +389,39 @@ def make_tiktok(job_id, clip_id):
     return jsonify({"error": "Clip not found"}), 404
 
 
+@app.route("/api/clips/<job_id>/<clip_id>/edit", methods=["POST"])
+def edit_clip_route(job_id, clip_id):
+    """Export a clip with crop, speed, and filter adjustments."""
+    job = jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    data = request.get_json()
+    crop = data.get("crop")  # {x, y, w, h} as 0-1 ratios
+    speed = float(data.get("speed", 1.0))
+    brightness = float(data.get("brightness", 0.0))
+    contrast = float(data.get("contrast", 1.0))
+    volume = float(data.get("volume", 1.0))
+
+    for clip in job["clips"]:
+        if clip["id"] == clip_id:
+            clip_path = os.path.join(CLIPS_DIR, clip["filename"])
+            if not os.path.exists(clip_path):
+                return jsonify({"error": "Clip file not found"}), 404
+
+            result = clip_manager.edit_clip(
+                clip_path, job_id, clip_id,
+                crop=crop, speed=speed,
+                brightness=brightness, contrast=contrast, volume=volume
+            )
+            if not result:
+                return jsonify({"error": "Failed to export edited clip"}), 500
+
+            return jsonify({"success": True, "filename": result["filename"]})
+
+    return jsonify({"error": "Clip not found"}), 404
+
+
 @app.route("/api/clips/<job_id>/<clip_id>/delete", methods=["POST"])
 def delete_clip(job_id, clip_id):
     job = jobs.get(job_id)

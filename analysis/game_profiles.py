@@ -21,12 +21,12 @@ GAME_PROFILES = {
         "detectors": {
             "kill_feed": {
                 "label": "Kill / Elimination",
-                "weight": 0.25,
+                "weight": 0.30,
                 # Kill notifications: bright white/yellow text top-right
                 "lower": np.array([0, 0, 200]),
                 "upper": np.array([180, 50, 255]),
                 "region": [0.05, 0.25, 0.55, 0.95],  # y1, y2, x1, x2 (as ratio)
-                "multiplier": 6,  # density * multiplier, capped at 1.0
+                "multiplier": 7,  # density * multiplier, capped at 1.0
             },
             "damage": {
                 "label": "Taking Damage",
@@ -37,30 +37,30 @@ GAME_PROFILES = {
                 "lower2": np.array([170, 120, 100]),
                 "upper2": np.array([180, 255, 255]),
                 "region": "edges",  # special: checks all 4 screen edges
-                "edge_size": 0.10,  # 10% of screen from each edge
-                "multiplier": 4,
+                "edge_size": 0.12,  # 12% of screen from each edge
+                "multiplier": 5,
             },
             "hit_marker": {
                 "label": "Landing Hits",
-                "weight": 0.15,
+                "weight": 0.20,
                 # Bright white center crosshair flash
                 "lower": np.array([0, 0, 230]),
                 "upper": np.array([180, 30, 255]),
                 "region": [0.4, 0.6, 0.4, 0.6],  # center screen
-                "multiplier": 5,
+                "multiplier": 6,
             },
             "explosion": {
                 "label": "Explosion / Combat",
-                "weight": 0.15,
+                "weight": 0.18,
                 # Orange-yellow muzzle flash / explosions
                 "lower": np.array([10, 100, 150]),
                 "upper": np.array([35, 255, 255]),
                 "region": "full",
-                "multiplier": 3,
+                "multiplier": 4,
             },
             "special": {
                 "label": "Arc Enemy Encounter",
-                "weight": 0.10,
+                "weight": 0.07,
                 # Blue glow from Arc enemies
                 "lower": np.array([90, 80, 100]),
                 "upper": np.array([130, 255, 255]),
@@ -69,18 +69,18 @@ GAME_PROFILES = {
             },
         },
 
-        # Motion detection weight
-        "motion_weight": 0.10,
-        "motion_multiplier": 3,
+        # Motion detection weight — low to avoid triggering on running/walking
+        "motion_weight": 0.03,
+        "motion_multiplier": 1.5,
 
-        # Brightness spike weight
-        "brightness_weight": 0.05,
-        "brightness_threshold": 0.6,
-        "brightness_multiplier": 3,
+        # Brightness spike weight — low to avoid triggering on menus/inventory
+        "brightness_weight": 0.02,
+        "brightness_threshold": 0.7,
+        "brightness_multiplier": 1.5,
 
         # Scoring
-        "intensity_threshold": 0.40,       # raised from 0.35 to reduce false positives
-        "fallback_threshold_ratio": 0.5,    # fallback = threshold * this
+        "intensity_threshold": 0.35,       # combat-focused: catch more fights
+        "fallback_threshold_ratio": 0.3,    # fallback = threshold * this
         "merge_gap": 8,                     # seconds between highlights to merge
         "min_clip_duration": 20,
         "max_clip_duration": 60,

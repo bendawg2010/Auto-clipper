@@ -241,6 +241,110 @@ class ClipManager:
             "timestamp_display": _format_time(new_start),
         }
 
+    def edit_clip(self, clip_path, job_id, clip_id, crop=None, speed=1.0,
+                  brightness=0.0, contrast=1.0, volume=1.0):
+        """
+        Export a clip with crop, speed, and filter adjustments.
+
+        Args:
+            clip_path: Path to the source clip file
+            job_id: Job identifier
+            clip_id: Clip identifier
+            crop: {"x": float, "y": float, "w": float, "h": float} as 0-1 ratios, or None
+            speed: Playback speed multiplier (0.25-4.0)
+            brightness: -1.0 to 1.0
+            contrast: 0.5 to 2.0
+            volume: 0.0 to 3.0
+
+        Returns:
+            {"filename": str} or None on failure
+        """
+        if not os.path.exists(clip_path):
+            return None
+
+        filename = f"{job_id}_{clip_id}_edit.mp4"
+        out_path = os.path.join(self.clips_dir, filename)
+
+        # Get source dimensions for crop
+        probe_cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=p=0",
+            clip_path,
+        ]
+        probe = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=10)
+        if probe.returncode != 0:
+            return None
+        src_w, src_h = [int(x) for x in probe.stdout.strip().split(",")]
+
+        # Build video filter chain
+        vfilters = []
+
+        # Crop
+        if crop:
+            cx = int(crop["x"] * src_w)
+            cy = int(crop["y"] * src_h)
+            cw = int(crop["w"] * src_w)
+            ch = int(crop["h"] * src_h)
+            # Ensure even dimensions for h264
+            cw = cw - (cw % 2)
+            ch = ch - (ch % 2)
+            if cw > 0 and ch > 0:
+                vfilters.append(f"crop={cw}:{ch}:{cx}:{cy}")
+
+        # Speed
+        speed = max(0.25, min(4.0, speed))
+        if speed != 1.0:
+            vfilters.append(f"setpts={1.0/speed}*PTS")
+
+        # Brightness and contrast (eq filter)
+        brightness = max(-1.0, min(1.0, brightness))
+        contrast = max(0.5, min(2.0, contrast))
+        if brightness != 0.0 or contrast != 1.0:
+            vfilters.append(f"eq=brightness={brightness}:contrast={contrast}")
+
+        # Ensure even output dimensions
+        vfilters.append("pad=ceil(iw/2)*2:ceil(ih/2)*2")
+
+        # Build audio filter chain
+        afilters = []
+        volume = max(0.0, min(3.0, volume))
+        if volume != 1.0:
+            afilters.append(f"volume={volume}")
+        if speed != 1.0:
+            afilters.append(f"atempo={speed}")
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", clip_path,
+        ]
+
+        vf_str = ",".join(vfilters) if vfilters else None
+        af_str = ",".join(afilters) if afilters else None
+
+        if vf_str:
+            cmd += ["-vf", vf_str]
+        if af_str:
+            cmd += ["-af", af_str]
+
+        cmd += [
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "22",
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-movflags", "+faststart",
+            out_path,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        if result.returncode != 0 or not os.path.exists(out_path):
+            print(f"  [Edit] ffmpeg error: {result.stderr.decode('utf-8', errors='replace')[-300:]}")
+            return None
+
+        return {"filename": filename}
+
     def delete_clip(self, clip):
         """Delete a clip and its thumbnail."""
         clip_path = os.path.join(self.clips_dir, clip["filename"])

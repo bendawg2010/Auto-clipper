@@ -151,9 +151,9 @@
             </div>
         </section>
 
-        <!-- Clip Preview + Trim Modal -->
+        <!-- Clip Preview + Editor Modal -->
         <div id="preview-modal" class="modal hidden" onclick="closeModal(event)">
-            <div class="modal-content">
+            <div class="modal-content editor-modal">
                 <button class="modal-close" onclick="closePreview()">&times;</button>
                 <video id="preview-video" controls></video>
                 <div class="modal-info">
@@ -161,9 +161,34 @@
                     <p id="modal-time"></p>
                 </div>
 
-                <!-- Trim Controls -->
-                <div class="trim-section">
-                    <h4>Adjust Clip Length</h4>
+                <!-- Editor Tabs -->
+                <div class="editor-tabs">
+                    <button class="editor-tab active" data-tab="trim" onclick="switchEditorTab('trim')">Trim</button>
+                    <button class="editor-tab" data-tab="crop" onclick="switchEditorTab('crop')">Crop</button>
+                    <button class="editor-tab" data-tab="effects" onclick="switchEditorTab('effects')">Effects</button>
+                </div>
+
+                <!-- TRIM TAB -->
+                <div id="tab-trim" class="editor-tab-content active">
+                    <!-- Visual Timeline Scrubber -->
+                    <div class="timeline-scrubber">
+                        <div class="timeline-labels">
+                            <span id="timeline-start-label">0:00</span>
+                            <span class="timeline-title">VOD Timeline</span>
+                            <span id="timeline-end-label">0:00</span>
+                        </div>
+                        <div class="timeline-track" id="timeline-track">
+                            <div class="timeline-range" id="timeline-range"></div>
+                            <div class="timeline-handle timeline-handle-start" id="timeline-handle-start"></div>
+                            <div class="timeline-handle timeline-handle-end" id="timeline-handle-end"></div>
+                        </div>
+                        <div class="timeline-info">
+                            <span id="timeline-range-display">0:00 - 0:00</span>
+                            <span id="timeline-duration-display">0s</span>
+                        </div>
+                    </div>
+
+                    <!-- Fine-tune controls -->
                     <div class="trim-controls">
                         <div class="trim-field">
                             <label>Start</label>
@@ -175,7 +200,6 @@
                                 <button class="trim-btn" onclick="adjustTrim('start', 1)">+1s</button>
                                 <button class="trim-btn" onclick="adjustTrim('start', 5)">+5s</button>
                             </div>
-                            <span class="trim-time" id="trim-start-display">0:00</span>
                         </div>
                         <div class="trim-field">
                             <label>End</label>
@@ -187,13 +211,76 @@
                                 <button class="trim-btn" onclick="adjustTrim('end', 1)">+1s</button>
                                 <button class="trim-btn" onclick="adjustTrim('end', 5)">+5s</button>
                             </div>
-                            <span class="trim-time" id="trim-end-display">0:00</span>
                         </div>
                     </div>
                     <div class="trim-footer">
                         <span class="trim-duration">Duration: <strong id="trim-duration-display">0s</strong></span>
                         <span id="trim-status" class="trim-status"></span>
                         <button id="trim-apply-btn" class="btn-apply-trim" onclick="applyTrim()">Re-cut Clip</button>
+                    </div>
+                </div>
+
+                <!-- CROP TAB -->
+                <div id="tab-crop" class="editor-tab-content">
+                    <div class="crop-presets">
+                        <button class="preset-btn active" onclick="setCropPreset('original')">Original</button>
+                        <button class="preset-btn" onclick="setCropPreset('16:9')">16:9</button>
+                        <button class="preset-btn" onclick="setCropPreset('4:3')">4:3</button>
+                        <button class="preset-btn" onclick="setCropPreset('1:1')">1:1</button>
+                        <button class="preset-btn" onclick="setCropPreset('9:16')">9:16</button>
+                        <button class="preset-btn" onclick="setCropPreset('custom')">Custom</button>
+                    </div>
+                    <div class="crop-canvas-wrap">
+                        <canvas id="crop-canvas"></canvas>
+                        <p class="crop-hint">Drag to reposition the crop region</p>
+                    </div>
+                    <div class="crop-footer">
+                        <span id="crop-size-display" class="trim-duration"></span>
+                        <span id="crop-status" class="trim-status"></span>
+                        <button id="crop-export-btn" class="btn-apply-trim" onclick="exportCrop()">Export Cropped</button>
+                    </div>
+                </div>
+
+                <!-- EFFECTS TAB -->
+                <div id="tab-effects" class="editor-tab-content">
+                    <div class="effects-grid">
+                        <div class="effect-control">
+                            <label>Speed</label>
+                            <div class="effect-slider-row">
+                                <input type="range" id="fx-speed" min="0.25" max="4" step="0.25" value="1"
+                                    oninput="onEffectChange()">
+                                <span id="fx-speed-val" class="effect-val">1x</span>
+                            </div>
+                        </div>
+                        <div class="effect-control">
+                            <label>Brightness</label>
+                            <div class="effect-slider-row">
+                                <input type="range" id="fx-brightness" min="-1" max="1" step="0.05" value="0"
+                                    oninput="onEffectChange()">
+                                <span id="fx-brightness-val" class="effect-val">0</span>
+                            </div>
+                        </div>
+                        <div class="effect-control">
+                            <label>Contrast</label>
+                            <div class="effect-slider-row">
+                                <input type="range" id="fx-contrast" min="0.5" max="2" step="0.05" value="1"
+                                    oninput="onEffectChange()">
+                                <span id="fx-contrast-val" class="effect-val">1.0</span>
+                            </div>
+                        </div>
+                        <div class="effect-control">
+                            <label>Volume</label>
+                            <div class="effect-slider-row">
+                                <input type="range" id="fx-volume" min="0" max="3" step="0.1" value="1"
+                                    oninput="onEffectChange()">
+                                <span id="fx-volume-val" class="effect-val">100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="effects-footer">
+                        <button class="trim-btn" onclick="resetEffects()">Reset All</button>
+                        <span id="fx-status" class="trim-status"></span>
+                        <button id="fx-export-btn" class="btn-apply-trim" onclick="exportWithEffects()">Export with Effects</button>
                     </div>
                 </div>
 

@@ -566,7 +566,18 @@ function renderClips() {
     `).join("");
 }
 
-// Preview + Trim modal
+// ===== Editor Tabs =====
+function switchEditorTab(tabName) {
+    document.querySelectorAll(".editor-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".editor-tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelector(`.editor-tab[data-tab="${tabName}"]`).classList.add("active");
+    document.getElementById(`tab-${tabName}`).classList.add("active");
+
+    // Initialize crop canvas when switching to crop tab
+    if (tabName === "crop") initCropCanvas();
+}
+
+// ===== Preview + Trim =====
 function previewClip(index) {
     const clip = currentClips[index];
     if (!clip) return;
@@ -590,26 +601,70 @@ function previewClip(index) {
     startInput.max = maxTime;
     endInput.max = maxTime;
 
-    document.getElementById("trim-start-display").textContent = formatTime(clip.start_time);
-    document.getElementById("trim-end-display").textContent = formatTime(clip.end_time);
     document.getElementById("trim-duration-display").textContent = clip.duration + "s";
 
     document.getElementById("trim-status").textContent = "";
     document.getElementById("trim-status").className = "trim-status";
 
+    // Reset to trim tab
+    switchEditorTab("trim");
+
+    // Reset effects
+    resetEffects();
+
+    // Reset crop
+    cropRegion = null;
+    cropPreset = "original";
+
+    // Initialize timeline
+    initTimeline();
+
     modal.classList.remove("hidden");
     video.play().catch(() => {});
 }
 
-function onTrimInputChange() {
-    const startInput = document.getElementById("trim-start");
-    const endInput = document.getElementById("trim-end");
-    const start = parseFloat(startInput.value);
-    const end = parseFloat(endInput.value);
+// ===== Timeline Scrubber =====
+let timelineDragging = null; // "start", "end", or null
 
-    document.getElementById("trim-start-display").textContent = formatTime(start);
-    document.getElementById("trim-end-display").textContent = formatTime(end);
-    document.getElementById("trim-duration-display").textContent = Math.max(0, (end - start)).toFixed(1) + "s";
+function initTimeline() {
+    if (!previewClipData) return;
+    const maxTime = vodDuration || previewClipData.end_time + 60;
+
+    document.getElementById("timeline-start-label").textContent = formatTime(0);
+    document.getElementById("timeline-end-label").textContent = formatTime(maxTime);
+
+    updateTimelineUI();
+}
+
+function updateTimelineUI() {
+    if (!previewClipData) return;
+    const maxTime = vodDuration || previewClipData.end_time + 60;
+    const start = parseFloat(document.getElementById("trim-start").value) || 0;
+    const end = parseFloat(document.getElementById("trim-end").value) || 0;
+
+    const track = document.getElementById("timeline-track");
+    const range = document.getElementById("timeline-range");
+    const handleStart = document.getElementById("timeline-handle-start");
+    const handleEnd = document.getElementById("timeline-handle-end");
+
+    const startPct = (start / maxTime) * 100;
+    const endPct = (end / maxTime) * 100;
+
+    range.style.left = startPct + "%";
+    range.style.width = (endPct - startPct) + "%";
+    handleStart.style.left = `calc(${startPct}% - 6px)`;
+    handleEnd.style.left = `calc(${endPct}% - 6px)`;
+
+    document.getElementById("timeline-range-display").textContent =
+        `${formatTime(start)} - ${formatTime(end)}`;
+    document.getElementById("timeline-duration-display").textContent =
+        Math.max(0, end - start).toFixed(1) + "s";
+    document.getElementById("trim-duration-display").textContent =
+        Math.max(0, end - start).toFixed(1) + "s";
+}
+
+function onTrimInputChange() {
+    updateTimelineUI();
 }
 
 function adjustTrim(field, delta) {
@@ -620,6 +675,71 @@ function adjustTrim(field, delta) {
     input.value = val.toFixed(1);
     onTrimInputChange();
 }
+
+// Timeline drag handlers
+(function() {
+    function getTimeFromX(e, track) {
+        const rect = track.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const maxTime = vodDuration || (previewClipData ? previewClipData.end_time + 60 : 300);
+        return pct * maxTime;
+    }
+
+    function onDown(e) {
+        const target = e.target;
+        if (target.id === "timeline-handle-start") {
+            timelineDragging = "start";
+            target.classList.add("dragging");
+        } else if (target.id === "timeline-handle-end") {
+            timelineDragging = "end";
+            target.classList.add("dragging");
+        }
+        if (timelineDragging) e.preventDefault();
+    }
+
+    function onMove(e) {
+        if (!timelineDragging) return;
+        e.preventDefault();
+        const track = document.getElementById("timeline-track");
+        const t = getTimeFromX(e, track);
+        const input = document.getElementById(`trim-${timelineDragging}`);
+        input.value = t.toFixed(1);
+        onTrimInputChange();
+    }
+
+    function onUp() {
+        if (timelineDragging) {
+            document.querySelectorAll(".timeline-handle").forEach(h => h.classList.remove("dragging"));
+            timelineDragging = null;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const track = document.getElementById("timeline-track");
+        track.addEventListener("mousedown", onDown);
+        track.addEventListener("touchstart", onDown, { passive: false });
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("touchmove", onMove, { passive: false });
+        document.addEventListener("mouseup", onUp);
+        document.addEventListener("touchend", onUp);
+
+        // Click on track to jump
+        track.addEventListener("click", (e) => {
+            if (e.target.classList.contains("timeline-handle")) return;
+            const t = getTimeFromX(e, track);
+            // Move whichever handle is closer
+            const start = parseFloat(document.getElementById("trim-start").value);
+            const end = parseFloat(document.getElementById("trim-end").value);
+            if (Math.abs(t - start) < Math.abs(t - end)) {
+                document.getElementById("trim-start").value = t.toFixed(1);
+            } else {
+                document.getElementById("trim-end").value = t.toFixed(1);
+            }
+            onTrimInputChange();
+        });
+    });
+})();
 
 function applyTrim() {
     if (!previewClipData || !currentJobId) return;
@@ -662,11 +782,9 @@ function applyTrim() {
         }
 
         if (data.success && data.clip) {
-            // Update local state
             currentClips[previewClipIndex] = data.clip;
             previewClipData = data.clip;
 
-            // Refresh video
             const video = document.getElementById("preview-video");
             video.src = `/static/clips/${data.clip.filename}?t=${Date.now()}`;
             video.play().catch(() => {});
@@ -687,11 +805,315 @@ function applyTrim() {
     });
 }
 
+// ===== Crop Tool =====
+let cropRegion = null; // {x, y, w, h} as 0-1 ratios
+let cropPreset = "original";
+let cropFrame = null;
+let cropDragging = false;
+let cropDragStart = null;
+
+function initCropCanvas() {
+    const video = document.getElementById("preview-video");
+    const canvas = document.getElementById("crop-canvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 360;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    cropFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (!cropRegion) {
+        cropRegion = { x: 0, y: 0, w: 1, h: 1 };
+    }
+
+    drawCropOverlay();
+    updateCropSizeDisplay();
+}
+
+function setCropPreset(preset) {
+    cropPreset = preset;
+    document.querySelectorAll("#tab-crop .preset-btn").forEach(b => b.classList.remove("active"));
+    if (event && event.target) event.target.classList.add("active");
+
+    const canvas = document.getElementById("crop-canvas");
+    const aspect = canvas.width / canvas.height;
+
+    if (preset === "original") {
+        cropRegion = { x: 0, y: 0, w: 1, h: 1 };
+    } else if (preset === "custom") {
+        cropRegion = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    } else {
+        // Parse target ratio
+        const [rw, rh] = preset.split(":").map(Number);
+        const targetAspect = rw / rh;
+
+        if (targetAspect > aspect) {
+            // Wider than source - fit width, crop height
+            const cropH = aspect / targetAspect;
+            cropRegion = { x: 0, y: (1 - cropH) / 2, w: 1, h: cropH };
+        } else {
+            // Taller than source - fit height, crop width
+            const cropW = targetAspect / aspect;
+            cropRegion = { x: (1 - cropW) / 2, y: 0, w: cropW, h: 1 };
+        }
+    }
+
+    drawCropOverlay();
+    updateCropSizeDisplay();
+}
+
+function drawCropOverlay() {
+    const canvas = document.getElementById("crop-canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (cropFrame) ctx.putImageData(cropFrame, 0, 0);
+
+    if (!cropRegion) return;
+
+    const w = canvas.width, h = canvas.height;
+    const rx = cropRegion.x * w, ry = cropRegion.y * h;
+    const rw = cropRegion.w * w, rh = cropRegion.h * h;
+
+    // Darken outside crop
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    // Top
+    ctx.fillRect(0, 0, w, ry);
+    // Bottom
+    ctx.fillRect(0, ry + rh, w, h - (ry + rh));
+    // Left
+    ctx.fillRect(0, ry, rx, rh);
+    // Right
+    ctx.fillRect(rx + rw, ry, w - (rx + rw), rh);
+
+    // Crop border
+    ctx.strokeStyle = var_accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rx, ry, rw, rh);
+
+    // Rule of thirds grid
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(rx + (rw * i / 3), ry);
+        ctx.lineTo(rx + (rw * i / 3), ry + rh);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rx, ry + (rh * i / 3));
+        ctx.lineTo(rx + rw, ry + (rh * i / 3));
+        ctx.stroke();
+    }
+
+    // Corner handles
+    ctx.fillStyle = var_accent;
+    const hs = 8;
+    [[rx, ry], [rx + rw, ry], [rx, ry + rh], [rx + rw, ry + rh]].forEach(([cx, cy]) => {
+        ctx.fillRect(cx - hs/2, cy - hs/2, hs, hs);
+    });
+}
+
+const var_accent = "#9147ff";
+
+function updateCropSizeDisplay() {
+    if (!cropRegion) return;
+    const canvas = document.getElementById("crop-canvas");
+    const pw = Math.round(cropRegion.w * canvas.width);
+    const ph = Math.round(cropRegion.h * canvas.height);
+    document.getElementById("crop-size-display").textContent = `${pw} x ${ph}px`;
+}
+
+// Crop canvas drag to reposition
+(function() {
+    let dragging = false;
+    let dragOffsetX, dragOffsetY;
+
+    function getPos(e, canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * scaleX / canvas.width,
+            y: (clientY - rect.top) * scaleY / canvas.height
+        };
+    }
+
+    function onStart(e) {
+        if (!cropRegion || cropPreset === "original") return;
+        const canvas = document.getElementById("crop-canvas");
+        const pos = getPos(e, canvas);
+
+        // Check if click is inside crop region
+        if (pos.x >= cropRegion.x && pos.x <= cropRegion.x + cropRegion.w &&
+            pos.y >= cropRegion.y && pos.y <= cropRegion.y + cropRegion.h) {
+            dragging = true;
+            dragOffsetX = pos.x - cropRegion.x;
+            dragOffsetY = pos.y - cropRegion.y;
+            e.preventDefault();
+        }
+    }
+
+    function onMove(e) {
+        if (!dragging || !cropRegion) return;
+        e.preventDefault();
+        const canvas = document.getElementById("crop-canvas");
+        const pos = getPos(e, canvas);
+
+        let nx = pos.x - dragOffsetX;
+        let ny = pos.y - dragOffsetY;
+        nx = Math.max(0, Math.min(1 - cropRegion.w, nx));
+        ny = Math.max(0, Math.min(1 - cropRegion.h, ny));
+
+        cropRegion.x = nx;
+        cropRegion.y = ny;
+
+        drawCropOverlay();
+    }
+
+    function onEnd() { dragging = false; }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const canvas = document.getElementById("crop-canvas");
+        canvas.addEventListener("mousedown", onStart);
+        canvas.addEventListener("touchstart", onStart, { passive: false });
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("touchmove", onMove, { passive: false });
+        document.addEventListener("mouseup", onEnd);
+        document.addEventListener("touchend", onEnd);
+    });
+})();
+
+function exportCrop() {
+    if (!previewClipData || !currentJobId || !cropRegion) return;
+    if (cropPreset === "original") {
+        document.getElementById("crop-status").textContent = "No crop applied";
+        document.getElementById("crop-status").className = "trim-status error";
+        return;
+    }
+
+    const statusEl = document.getElementById("crop-status");
+    const btn = document.getElementById("crop-export-btn");
+    statusEl.textContent = "Exporting cropped clip...";
+    statusEl.className = "trim-status working";
+    btn.disabled = true;
+
+    fetch(`/api/clips/${currentJobId}/${previewClipData.id}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crop: cropRegion }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.error) {
+            statusEl.textContent = data.error;
+            statusEl.className = "trim-status error";
+            return;
+        }
+        statusEl.textContent = "Done! Downloading...";
+        statusEl.className = "trim-status success";
+        const a = document.createElement("a");
+        a.href = `/static/clips/${data.filename}`;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    })
+    .catch(() => {
+        btn.disabled = false;
+        statusEl.textContent = "Export failed";
+        statusEl.className = "trim-status error";
+    });
+}
+
+// ===== Effects =====
+function onEffectChange() {
+    const speed = parseFloat(document.getElementById("fx-speed").value);
+    const brightness = parseFloat(document.getElementById("fx-brightness").value);
+    const contrast = parseFloat(document.getElementById("fx-contrast").value);
+    const volume = parseFloat(document.getElementById("fx-volume").value);
+
+    document.getElementById("fx-speed-val").textContent = speed + "x";
+    document.getElementById("fx-brightness-val").textContent = brightness.toFixed(2);
+    document.getElementById("fx-contrast-val").textContent = contrast.toFixed(2);
+    document.getElementById("fx-volume-val").textContent = Math.round(volume * 100) + "%";
+
+    // Live CSS preview for brightness/contrast on video
+    const video = document.getElementById("preview-video");
+    video.style.filter = `brightness(${1 + brightness}) contrast(${contrast})`;
+    video.playbackRate = Math.max(0.25, Math.min(4, speed));
+}
+
+function resetEffects() {
+    document.getElementById("fx-speed").value = 1;
+    document.getElementById("fx-brightness").value = 0;
+    document.getElementById("fx-contrast").value = 1;
+    document.getElementById("fx-volume").value = 1;
+    onEffectChange();
+
+    // Reset CSS preview
+    const video = document.getElementById("preview-video");
+    video.style.filter = "";
+    video.playbackRate = 1;
+}
+
+function exportWithEffects() {
+    if (!previewClipData || !currentJobId) return;
+
+    const speed = parseFloat(document.getElementById("fx-speed").value);
+    const brightness = parseFloat(document.getElementById("fx-brightness").value);
+    const contrast = parseFloat(document.getElementById("fx-contrast").value);
+    const volume = parseFloat(document.getElementById("fx-volume").value);
+
+    if (speed === 1 && brightness === 0 && contrast === 1 && volume === 1) {
+        document.getElementById("fx-status").textContent = "No effects applied";
+        document.getElementById("fx-status").className = "trim-status error";
+        return;
+    }
+
+    const statusEl = document.getElementById("fx-status");
+    const btn = document.getElementById("fx-export-btn");
+    statusEl.textContent = "Exporting with effects...";
+    statusEl.className = "trim-status working";
+    btn.disabled = true;
+
+    fetch(`/api/clips/${currentJobId}/${previewClipData.id}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ speed, brightness, contrast, volume }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.error) {
+            statusEl.textContent = data.error;
+            statusEl.className = "trim-status error";
+            return;
+        }
+        statusEl.textContent = "Done! Downloading...";
+        statusEl.className = "trim-status success";
+        const a = document.createElement("a");
+        a.href = `/static/clips/${data.filename}`;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    })
+    .catch(() => {
+        btn.disabled = false;
+        statusEl.textContent = "Export failed";
+        statusEl.className = "trim-status error";
+    });
+}
+
 function closePreview() {
     const modal = document.getElementById("preview-modal");
     const video = document.getElementById("preview-video");
     video.pause();
     video.src = "";
+    video.style.filter = "";
+    video.playbackRate = 1;
     modal.classList.add("hidden");
     previewClipData = null;
     previewClipIndex = -1;
