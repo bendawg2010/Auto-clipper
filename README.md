@@ -36,7 +36,11 @@ That's it. First time it installs everything (Python required — it'll tell you
 
 That's it. First time it installs Homebrew, Python, FFmpeg, and all dependencies automatically. It will ask for your Mac password once (you won't see characters as you type — that's normal). Every time after, just double-click the same file.
 
-> **Mac security note:** If macOS says the file "can't be opened", right-click it → Open → click Open. You only need to do this once.
+> **Mac security note:** If macOS blocks the file, open Terminal and run:
+> ```
+> xattr -d com.apple.quarantine ~/Downloads/Auto-clipper-*/Auto-Clipper.command
+> ```
+> Then double-click it again. You only need to do this once.
 
 Your browser opens to **http://localhost:8080** — that's the app.
 
